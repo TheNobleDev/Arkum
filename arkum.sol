@@ -256,6 +256,7 @@ contract Arkum is Context, IERC20, Ownable {
     uint256 private _previousBitcoinPoolFee = _bitcoinPoolFee;
     uint256 public totalFees;
 
+    uint256 public _maxTxAmount = 2000000 * 10**6 * 10**9;
     uint256 public _maxWalletBalance = _totSupply.mul(2).div(100);
     uint256 private minimumTokensBeforeSwap = 20000 * 10**6 * 10**9;
 
@@ -369,12 +370,19 @@ contract Arkum is Context, IERC20, Ownable {
     function _transfer(address from,address to,uint256 amount) private {
         require(from != address(0), "BEP20: transfer from the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+
         if(!_isExcludedFromFee[from] && !_isExcludedFromFee[to] && to != uniswapV2Pair) {
+            require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
             require((_balances[to]+amount) <= _maxWalletBalance, 'Balance exceeding limit');
         }
 
         uint256 contractTokenBalance = balanceOf(address(this));
         bool overMinimumTokenBalance = contractTokenBalance >= minimumTokensBeforeSwap;
+
+        if(contractTokenBalance >= _maxTxAmount)
+        {
+            contractTokenBalance = _maxTxAmount;
+        }
 
         if (!inSwap && swapEnabled && overMinimumTokenBalance && to != uniswapV2Pair) {
             // We need to swap the current tokens to BNB
@@ -503,6 +511,10 @@ contract Arkum is Context, IERC20, Ownable {
     function setBitcoinPoolFee(uint256 bitcoinPoolFee) external onlyOwner() {
         _bitcoinPoolFee = bitcoinPoolFee;
         updateTotalFee();
+    }
+
+    function setMaxTxAmount(uint256 maxTxAmount) external onlyOwner() {
+        _maxTxAmount = maxTxAmount;
     }
 
     function setNumTokensSellToAddToLiquidity(uint256 _minimumTokensBeforeSwap) external onlyOwner() {
