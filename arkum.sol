@@ -256,9 +256,9 @@ contract Arkum is Context, IERC20, Ownable {
     uint256 private _previousBitcoinPoolFee = _bitcoinPoolFee;
     uint256 public totalFees;
 
-    uint256 public _maxTxAmount = 2000000 * 10**6 * 10**9;
-    uint256 public _maxWalletBalance = _totSupply.mul(2).div(100);
-    uint256 private minimumTokensBeforeSwap = 20000 * 10**6 * 10**9;
+    uint256 public _maxTxAmount = 2000000 * 10**6 * 10**9; // 0.2%
+    uint256 public _maxWalletBalance = _totSupply.mul(2).div(100); // 2%
+    uint256 private minimumTokensBeforeSwap = 20000 * 10**6 * 10**9; // 0.002%
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
@@ -429,20 +429,22 @@ contract Arkum is Context, IERC20, Ownable {
         transferTaxBNB(devTaxWallet, amount.div(totalFees).mul(_devFee));
         transferTaxBNB(marketingTaxWallet, amount.div(totalFees).mul(_marketingTaxFee));
         transferTaxBNB(buybackWallet, amount.div(totalFees).mul(_buybackFee));
-        transferTaxBNB(bitcoinPoolWallet, amount.div(totalFees).mul(_bitcoinPoolFee));
+        transferTaxBNB(bitcoinPoolWallet, address(this).balance);
     }
 
     function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
-        if(!takeFee)
+        if(!takeFee){
             removeAllFee();
+        }
         uint256 feeAmt = amount.mul(totalFees).div(100);
         uint256 transferAmount = amount.sub(feeAmt);
 
         _transferStandard(sender, recipient, transferAmount);
         _takeLiquidity(feeAmt);
 
-        if(!takeFee)
+        if(!takeFee){
             restoreAllFee();
+        }
     }
 
     function _takeLiquidity(uint256 amount) private {
@@ -464,10 +466,11 @@ contract Arkum is Context, IERC20, Ownable {
         _previousBuybackFee = _buybackFee;
         _previousBitcoinPoolFee = _bitcoinPoolFee;
 
-        _devFee= 0;
-        _marketingTaxFee= 0;
-        _buybackFee= 0;
-        _bitcoinPoolFee= 0;
+        _devFee = 0;
+        _marketingTaxFee = 0;
+        _buybackFee = 0;
+        _bitcoinPoolFee = 0;
+        updateTotalFee();
     }
 
     function restoreAllFee() private {
@@ -475,6 +478,7 @@ contract Arkum is Context, IERC20, Ownable {
         _marketingTaxFee = _previousMarketingTaxFee;
         _buybackFee = _previousBuybackFee;
         _bitcoinPoolFee = _previousBitcoinPoolFee;
+        updateTotalFee();
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
